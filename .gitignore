@@ -222,3 +222,5 @@ data/videos
 data/images
 
 src/.DS_Store
+
+myenv/
