@@ -224,3 +224,7 @@ data/images
 src/.DS_Store
 
 myenv/
+
+data/
+
+.DS_Store
