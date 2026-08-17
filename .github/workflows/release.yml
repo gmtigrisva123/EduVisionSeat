@@ -2,16 +2,20 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    tags: ["v*.*.*"]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
 jobs:
-  package:
-    name: Build release artifact
+  verify:
+    name: Verify before packaging
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repository
@@ -20,25 +24,68 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
           cache: pip
+          cache-dependency-path: requirements-tools.txt
 
-      - name: Install packaging dependencies
+      - name: Install tooling
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-tools.txt
 
-      - name: Validate project
-        run: |
-          python -m compileall src
+      - name: Lint (ruff)
+        run: ruff check src tests
 
-      - name: Create artifact archive
+      - name: Static security scan (bandit)
+        run: bandit -c pyproject.toml -r src -q
+
+      - name: Byte-compile sources
+        run: python -m compileall -q src tests
+
+      - name: Tests
+        run: pytest
+
+  package:
+    name: Build and publish the release archive
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # Only this job needs write access, and only to create the release.
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Model weights are deliberately left out: they are large and both pipelines
+      # download what they need on first run.
+      - name: Build archive
         run: |
+          set -euo pipefail
+          name="eduvisionseat-${GITHUB_REF_NAME}"
           mkdir -p dist
-          zip -r "dist/eduvisionseat-${{ github.ref_name }}.zip" src README.md LICENSE docs
+          zip -qr "dist/${name}.zip" \
+            src docs tests \
+            README.md LICENSE pyproject.toml \
+            requirements.txt requirements-dev.txt requirements-tools.txt \
+            -x '*/__pycache__/*' '*.pyc' '*.DS_Store' 'src/notebook/data/*'
+          ( cd dist && sha256sum "${name}.zip" > "${name}.zip.sha256" )
+          unzip -l "dist/${name}.zip" | tail -1
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-archive
+          path: dist/*
+          if-no-files-found: error
 
       - name: Publish GitHub release
-        uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.zip
+          files: |
+            dist/*.zip
+            dist/*.zip.sha256
+          generate_release_notes: true
+          fail_on_unmatched_files: true

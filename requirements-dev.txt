@@ -1,5 +1,3 @@
+# Full development environment: runtime dependencies plus tooling.
 -r requirements.txt
-pytest>=8.0
-ruff>=0.5
-bandit[toml]>=1.7
-pip-audit>=2.7
+-r requirements-tools.txt

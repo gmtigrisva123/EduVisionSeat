@@ -17,75 +17,98 @@ git switch -c feat/<topic>-<name>
 
 ## Checks to run before opening a PR
 
-Run exactly what CI will run, so you do not wait on a round trip through GitHub:
+These are exactly the commands the `CI` workflow runs, so running them locally means no
+waiting on a round trip through GitHub:
 
 ```bash
-ruff check src            # lint
-bandit -r src -q          # source security scan
-python -m compileall src  # syntax check
-pytest -q                 # tests (none exist yet)
+ruff check src tests
+ruff format --check --exclude '*.ipynb' src tests
+bandit -c pyproject.toml -r src -q
+python -m compileall -q src tests
+pytest
 ```
+
+They need only `requirements-tools.txt`, so a lint/test environment installs in seconds
+without `torch`. `ruff format` (without `--check`) applies the formatting.
 
 Audit dependencies the way the `Security` workflow does:
 
 ```bash
-pip-audit -r requirements.txt
+pip-audit --requirement requirements.txt --requirement requirements-tools.txt
 ```
 
 ## CI workflows
 
-| Workflow | Trigger | What it runs |
+| Workflow | Trigger | What it does |
 | --- | --- | --- |
-| `CI` (`.github/workflows/ci.yml`) | push/PR to `main`, `master`, `develop` | Ruff, Bandit, `compileall`, `pytest` on Python 3.10 and 3.11 |
-| `Security` (`.github/workflows/security.yml`) | push/PR to `main`, `master`; plus Mondays at 03:00 UTC | Bandit and `pip-audit` |
-| `Release` (`.github/workflows/release.yml`) | tags matching `v*.*.*` | `compileall`, then packages `src`, `README.md`, `LICENSE` and `docs` into a zip and creates a GitHub release |
+| `CI` (`ci.yml`) | push/PR to `main`, `master`, `develop` | **quality**: ruff, ruff format, bandit, `compileall`, pytest on Python 3.10 and 3.11. **data-hygiene**: fails if any classroom image or video is tracked by Git |
+| `Security` (`security.yml`) | push/PR to `main`, `master`; Mondays 03:00 UTC | **code-scan**: bandit report. **dependency-audit**: `pip-audit` over the declared requirements |
+| `Pipeline smoke test` (`pipeline.yml`) | push to `main` touching `src/**`; Mondays 03:30 UTC; manual | Installs the full runtime stack and runs both pipelines end to end — pose on the committed sample, detection on a synthesised frame |
+| `Release` (`release.yml`) | tags matching `v*.*.*`; manual | **verify** (lint, bandit, compileall, pytest) then **package**: zip + SHA-256 checksum, uploaded as an artifact and attached to the GitHub release |
 
-A note on `pytest` in CI: the workflow treats exit code `5` (no tests collected) as
-success, so the test step is currently always green. Once you add real tests, failures
-will turn CI red as usual.
+Design notes worth keeping:
+
+- Every workflow declares `permissions: contents: read`. Only the release *packaging*
+  job escalates to `contents: write`, and only to create the release.
+- The heavy runtime install lives in `pipeline.yml`, not in `CI`, so pull requests stay
+  fast and deterministic. Run it manually from the Actions tab when you change a pipeline
+  on a branch.
+- `dependabot.yml` opens weekly PRs for pip requirements and action versions.
 
 ## Code style
 
 - Docstrings and code comments are written in **English**, and so is everything under
   `docs/`.
-- Every package must have a **side-effect-free** `__init__.py`: docstring and `__all__`
-  only. Never re-export modules that run a pipeline at module level — see
-  [architecture.md](architecture.md#rule-__init__py-must-be-free-of-side-effects).
-- Use `pathlib.Path` for paths rather than string concatenation. Do not hardcode
-  absolute paths; resolve the repository root the way the existing scripts do.
-- Ruff runs with its default configuration (the repository has no `pyproject.toml` or
-  `ruff.toml`). If a rule needs tightening or relaxing, add explicit configuration
-  instead of scattering `# noqa` comments.
+- `ruff` and `bandit` are configured in `pyproject.toml`; the ruff rule set includes
+  pydocstyle (Google convention), so public functions need docstrings. Add explicit
+  configuration rather than scattering `# noqa`.
+- Line length is 100. Notebooks are exempt from line length and import-position rules,
+  since cells are narrative.
+- Use `pathlib.Path` for paths, never string concatenation or `os.path`.
+- Resolve paths from `__file__`, not from the working directory.
+- Keep `__init__.py` free of side effects and expose the package API lazily — see
+  [ARCHITECTURE.md](ARCHITECTURE.md#__init__py-exposes-an-api-and-stays-free-of-side-effects).
+- Put execution behind `main()` with an `argparse` parser, and add a `__main__.py` when
+  you create a new pipeline package.
+
+## Adding a pipeline package
+
+`tests/test_structure.py` requires each pipeline package under `src/` to ship an
+`__init__.py`, a `__main__.py`, at least one module and at least one notebook. Follow
+`src/detect` as the template, then add the new package name to `PIPELINE_PACKAGES` in
+that test file.
 
 ## Dependencies
 
-- `requirements.txt` — dependencies needed to **run** the pipelines.
-- `requirements-dev.txt` — development tooling; it already includes
-  `-r requirements.txt`, so it is the only file you need when working on code.
+| File | Purpose |
+| --- | --- |
+| `requirements.txt` | Runtime dependencies for the pipelines |
+| `requirements-tools.txt` | Lint, test and audit tooling — no runtime dependencies |
+| `requirements-dev.txt` | `-r` both of the above; the file to install while developing |
 
 Pin minimum versions with `>=`, matching the existing lines. When you add a new import
-under `src/`, add the corresponding dependency in the same PR. Be aware that CI will not
-catch a missing dependency: Ruff, Bandit and `compileall` never actually import your
-modules, so an unlisted package fails only on a fresh install. `ultralytics` was missing
-from `requirements.txt` for exactly this reason.
+under `src/`, add the corresponding dependency in the same PR. Be aware that lint and
+tests will not catch a missing dependency: ruff, bandit and `compileall` never import
+your modules, and the test suite deliberately avoids the heavy ones. The
+`Pipeline smoke test` workflow is what catches it, because it installs
+`requirements.txt` from scratch and runs both pipelines.
 
 ## Notebooks
 
+Each pipeline package ships exactly one notebook, kept next to the code it exercises.
 Notebooks are committed **with their outputs** in this repository, which makes diffs
-large (`src/pose/pose_landmarker_notebook.ipynb` is close to 1 MB). Before committing,
-strip any output containing images of students — notebook output is personal data too,
-see [data-and-ethics.md](data-and-ethics.md#outputs-are-personal-data-too).
-
-To clear all outputs from the command line:
+large. Before committing, strip any output containing images of students — notebook
+output is personal data too, see
+[DATA_AND_ETHICS.md](DATA_AND_ETHICS.md#outputs-are-personal-data-too).
 
 ```bash
-jupyter nbconvert --clear-output --inplace src/pose/pose_landmarker_notebook.ipynb
+jupyter nbconvert --clear-output --inplace src/detect/detect_notebook.ipynb
 ```
 
 ## Commits and pull requests
 
-Use Conventional Commit prefixes as the existing history does (`feat:`, `docs:`, `fix:`).
-Write in the imperative mood and describe **what changed and why**.
+Use Conventional Commit prefixes as the existing history does (`feat:`, `docs:`, `fix:`,
+`build:`, `ci:`). Write in the imperative mood and describe **what changed and why**.
 
 In the pull request, state the purpose of the change, how you verified it (which commands
 you ran and what they reported), and whether data handling changed. Do not attach
@@ -99,7 +122,8 @@ git tag -a v1.0.0 -m "Release v1.0.0"
 git push origin v1.0.0
 ```
 
-A tag matching `v*.*.*` triggers the `Release` workflow. That workflow packages the
-`docs` directory, so `docs/` must always contain at least one committed file — Git does
-not track empty directories, and the `zip` step fails if `docs` does not exist after
-checkout.
+A tag matching `v*.*.*` triggers the `Release` workflow: it re-runs the checks, builds
+`eduvisionseat-<tag>.zip` with a `.sha256` checksum, and publishes a GitHub release with
+generated notes. Model weights are excluded from the archive — both pipelines download
+what they need on first run. `docs/` must always contain at least one committed file,
+since the archive includes that directory.

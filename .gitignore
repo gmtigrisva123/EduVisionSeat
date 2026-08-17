@@ -222,3 +222,11 @@ data/videos
 data/images
 
 src/.DS_Store
+# macOS Finder metadata
+.DS_Store
+**/.DS_Store
+
+# Scratch directory used by the pipeline smoke workflow
+ci-scratch/
+
+data/

@@ -1,0 +1,50 @@
+# Tool configuration for EduVisionSeat.
+#
+# The repository is not packaged for distribution (no [project] table, no build
+# backend): it is research code run in place with `python -m src.<package>.<module>`.
+# This file exists so that lint, test and security runs behave identically on a
+# developer machine and in CI.
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = ["venv", "data", "models"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # import sorting
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "RET",  # flake8-return
+    "PTH",  # prefer pathlib over os.path
+    "D",    # pydocstyle
+]
+ignore = [
+    "D203",  # conflicts with D211 (no blank line before class docstring)
+    "D213",  # conflicts with D212 (multi-line summary on the first line)
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Notebooks are narrative: cells are documented by their surrounding markdown.
+"*.ipynb" = ["D100", "E402", "E501"]
+# Tests document themselves through their names.
+"tests/*" = ["D100", "D103"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-q --strict-markers --strict-config"
+# The repository is not installed as a package, so put the root on sys.path.
+# Without this, a bare `pytest` cannot import `src` (only `python -m pytest` can).
+pythonpath = ["."]
+
+[tool.bandit]
+exclude_dirs = ["venv", "tests", "data", "models"]

@@ -1,0 +1,7 @@
+# Lint, test and audit tooling. Kept free of the runtime dependencies so CI can
+# install it on its own -- no torch/mediapipe download for a lint or test job.
+pytest>=8.0
+ruff>=0.5
+bandit[toml]>=1.7
+pip-audit>=2.7
+nbformat>=5.9

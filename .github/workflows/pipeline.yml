@@ -1,0 +1,98 @@
+name: Pipeline smoke test
+
+# The real pipelines need the full runtime stack (torch, MediaPipe), which is a
+# multi-minute install. That is too slow to gate every pull request, so this
+# workflow runs on demand, weekly, and whenever the pipelines change on main.
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "src/**"
+      - "requirements.txt"
+      - ".github/workflows/pipeline.yml"
+  schedule:
+    - cron: "30 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pipeline-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  # Both pipelines render figures; keep matplotlib off-screen on the runner.
+  MPLBACKEND: Agg
+
+jobs:
+  smoke:
+    name: Run both pipelines end to end
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      # opencv-python needs libGL and GLib at import time. The GLib package was
+      # renamed in Ubuntu 24.04 (libglib2.0-0 -> libglib2.0-0t64), so try the new
+      # names first and fall back to the old ones.
+      - name: Install OpenCV system libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0t64 \
+            || sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0
+
+      - name: Install runtime dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Import check
+        run: python -c "import cv2, mediapipe, ultralytics; print('runtime imports OK')"
+
+      # data/pose/images_man_standing.jpeg and models/pose_landmarker.task are both
+      # committed, so this runs offline and asserts a pose is actually detected.
+      - name: Pose pipeline
+        run: python -m src.pose --no-show
+
+      # Classroom images are never committed, so synthesise an input frame instead.
+      - name: Detection pipeline
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          import numpy as np
+          from PIL import Image
+
+          scratch = Path("ci-scratch/input")
+          scratch.mkdir(parents=True, exist_ok=True)
+          rng = np.random.default_rng(seed=0)
+          frame = rng.integers(0, 255, size=(480, 640, 3), dtype=np.uint8)
+          Image.fromarray(frame).save(scratch / "synthetic.jpg")
+          print("wrote", scratch / "synthetic.jpg")
+          PY
+          python -m src.detect \
+            --input-dir ci-scratch/input \
+            --output-dir ci-scratch/output \
+            --limit 1
+          test -f ci-scratch/output/detected_synthetic.jpg
+          echo "Detection wrote the expected output file."
+
+      - name: Empty input directory is handled cleanly
+        run: |
+          set -euo pipefail
+          mkdir -p ci-scratch/empty
+          python -m src.detect --input-dir ci-scratch/empty --output-dir ci-scratch/out2
+          test ! -d ci-scratch/out2
+          echo "No input means no output directory and no model load."
