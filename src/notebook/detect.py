@@ -1,9 +1,19 @@
 import os
 from ultralytics import YOLO
 from glob import glob
+from pathlib import Path
+from typing import Optional, Any
 
-INPUT_DIR = "data/images/input"
-OUTPUT_DIR = "data/images/output"
+def find_repo_root(start: Path | Optional | Any) -> Path:
+    """Return the first directory, walking up from `start`, that contains data/pose."""
+    for path in (start, *start.parents):
+        if (path / "data" / "pose").is_dir():
+            return path
+    raise FileNotFoundError(f"Could not locate the repository root (data/pose) starting from {start}")
+
+ROOT = find_repo_root(Path.cwd().resolve())
+INPUT_DIR = ROOT / "data" / "images" / "input"
+OUTPUT_DIR = ROOT / "data" / "images" / "output"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -14,7 +24,6 @@ for ext in image_extensions:
 
 all_images.sort()
 
-# Lấy 5 ảnh
 target_images = all_images[:5]
 
 if not target_images:
@@ -25,18 +34,14 @@ else:
     print(f"Start analyzing image {len(target_images)}...")
     
     for img_path in target_images:
-        # Chạy model
         results = model(img_path)
         
-        # Lấy tên file gốc
         base_name = os.path.basename(img_path)
-        # Tạo đường dẫn lưu mới
         save_path = os.path.join(OUTPUT_DIR, f"detected_{base_name}")
         
-        # Lưu ảnh đã vẽ bounding box vào thư mục đích
         for result in results:
             result.save(filename=save_path)
             
-        print(f" Đã xử lý và lưu: {save_path}")
+        print(f"Processed and saved: {save_path}")
 
-print(" Hoàn thành phân tích 5 ảnh!")
+print("Done analyzing 5 photos!")

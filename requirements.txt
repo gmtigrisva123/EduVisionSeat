@@ -5,3 +5,4 @@ mediapipe>=0.10
 ipython>=8.0
 jupyter>=1.0
 Pillow>=9.0
+ultralytics>=8.4
