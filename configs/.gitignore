@@ -1,0 +1,3 @@
+# Written by PersonDetector._disable_reid() when the ReID encoder cannot be
+# downloaded. It records a degraded run, so it is regenerated, never committed.
+_tracker_noreid_autogen.yaml

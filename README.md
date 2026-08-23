@@ -1,54 +1,53 @@
 # EduVisionSeat
 
-Bộ công cụ cho phát hiện và phân tích tư thế/ngồi trong ảnh và video, phục vụ nghiên cứu và ứng dụng giáo dục.
+A toolkit for detecting and analysing posture/seating in images and video, built for research and educational applications.
 
-## Tổng quan
-- **Mục tiêu:** Cung cấp mã nguồn, notebook và mô hình mẫu để phát hiện đối tượng (ghế, học sinh) và phân tích tư thế từ ảnh/video.
-- **Thư mục chính:**
-	- [data](data) — chứa dữ liệu ảnh và video đầu vào. -> bị ẩn đi do bảo mật dữ liệu học sinh và những người được thí nghiệm trong dự án - ethics sẽ được ghi trong nghiên cứu và dự án.
-	- [src/detect](src/detect/__init__.py#L1) — mã phát hiện (module).
-	- [src/notebook](src/notebook/pose.ipynb) — notebook minh họa (kèm mô hình nhỏ `yolov8n.pt`).
-	- [src/pose](src/pose) — mã xử lý tư thế (pose estimation).
+## Overview
+- **Goal:** Provide source code, notebooks and sample models for object detection (chairs, students) and posture analysis from images/video.
+- **Main directories:**
+	- [data](data) — holds the input images and videos. -> kept private to protect the data of students and other participants in the project; the ethics statement is documented in the research write-up and the project docs.
+	- [src/detect](src/detect/__init__.py#L1) — detection code (module).
+	- [src/notebook](src/notebook/detect_notebook_advanced_version.ipynb) — demonstration notebooks (ships with the small `yolov8n.pt` model).
+	- [src/pose](src/pose) — posture processing code (pose estimation).
 
-## Yêu cầu
-- Python 3.8+ (hoặc tương đương)
-- Thư viện phổ biến: `torch`, `opencv-python`, `numpy`, `yolov8`/`ultralytics` (tùy implementation). Nếu có `requirements.txt`, cài bằng:
+## Requirements
+- Python 3.8+ (or equivalent)
+- Common libraries: `torch`, `opencv-python`, `numpy`, `yolov8`/`ultralytics` (depending on the implementation). If a `requirements.txt` is present, install with:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Cấu trúc dữ liệu
-- Ảnh đầu vào: đặt trong `data/images/input/`.
-- Kết quả đầu ra (hình ảnh, video, logs): lưu trong `src/notebook/data/images/output/` hoặc thư mục tương ứng.
+## Data layout
+- Input images: place them in `data/images/input/`.
+- Output results (images, video, logs): saved to `src/notebook/data/images/output/` or the corresponding directory.
 
-## Hướng dẫn nhanh
-1. Chuẩn bị môi trường và cài package.
-2. Bổ sung dữ liệu vào [data/images/input](data/images/input).
-3. Chạy mô-đun phát hiện hoặc mở notebook minh họa:
+## Quick start
+1. Set up the environment and install the packages.
+2. Add your data to [data/images/input](data/images/input).
+3. Run the detection module or open a demonstration notebook:
 
 ```bash
-# Mở notebook (ví dụ dùng jupyter)
-jupyter notebook src/notebook/pose.ipynb
+# Open a notebook (for example with jupyter)
+jupyter notebook src/pose/pose.ipynb
 
-# Hoặc chạy script phát hiện (tùy repo):
+# Or run the detection script (depending on the repo):
 python -m src.detect.run --input data/images/input --output src/notebook/data/images/output
 ```
 
-Lưu ý: tên script/entrypoint có thể khác; xem nội dung thư mục `src/detect` để biết chi tiết.
+Note: the script/entrypoint name may differ; look inside `src/detect` for the details.
 
-## Mô hình mẫu
-- File mô hình mẫu có sẵn: `src/notebook/yolov8n.pt` (dự phòng). Bạn có thể thay bằng mô hình lớn hơn để cải thiện chất lượng.
+## Sample model
+- A sample model file is included: `src/notebook/yolov8n.pt` (fallback). You can swap in a larger model to improve quality.
 
-## Góp ý & Phát triển
-- Nếu muốn mở rộng: thêm tập dữ liệu, huấn luyện lại mô hình, hoặc tích hợp bộ lọc hậu xử lý (post-processing) cho độ chính xác cao hơn.
-- Gửi issues hoặc PR nếu bạn muốn góp code hoặc báo lỗi.
+## Feedback & development
+- To extend the project: add datasets, retrain the model, or add a post-processing filter for higher accuracy.
+- Open an issue or a PR if you want to contribute code or report a bug.
 
 ## License
-Xem file `LICENSE` để biết chi tiết bản quyền và điều kiện sử dụng.
+See the `LICENSE` file for the copyright details and terms of use.
 
 ---
-Nếu bạn muốn, tôi có thể:
-- Thêm hướng dẫn cài full `requirements.txt` từ môi trường hiện tại.
-- Viết script chạy mẫu `src/detect/run.py` nếu chưa có.
-
+Possible next steps:
+- Add instructions for installing a full `requirements.txt` generated from the current environment.
+- Write a sample runner script `src/detect/run.py` if one does not exist yet.

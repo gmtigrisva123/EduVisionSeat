@@ -1,0 +1,4 @@
+# Model checkpoints and MediaPipe task bundles are downloaded on demand and are
+# far too large to version. Keep the directory, ignore its contents.
+*
+!.gitignore

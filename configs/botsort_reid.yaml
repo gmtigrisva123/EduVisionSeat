@@ -1,0 +1,34 @@
+# BoT-SORT tuned for a fixed classroom camera.
+#
+# Two departures from the ultralytics default, both deliberate:
+#
+#   gmc_method: none  — global motion compensation corrects for a moving camera.
+#                       Ours is on a tripod, so GMC only adds noise and cost.
+#   with_reid: true   — students sit still, which makes the motion cue nearly
+#                       useless. Appearance is the main association signal here;
+#                       without it, IDs swap after every occlusion.
+#
+# If the ReID encoder cannot be downloaded, PersonDetector regenerates this file
+# without ReID and logs the degradation rather than failing the run.
+
+tracker_type: botsort
+
+# Association thresholds
+track_high_thresh: 0.25 # first association pass
+track_low_thresh: 0.1 # second pass, recovers low-confidence boxes
+new_track_thresh: 0.25 # confidence needed to open a new track
+match_thresh: 0.8 # IoU threshold for the linear assignment
+fuse_score: true # weight IoU by detection confidence
+
+# Students leave the frame briefly (leaning, occlusion by a classmate) and come
+# back. 30 frames is too short for that; keep lost tracks alive for ~2s at 30fps.
+track_buffer: 60
+
+# Fixed camera: no global motion to compensate for.
+gmc_method: none
+
+# Appearance matching
+with_reid: true
+model: auto # ultralytics picks the encoder matching the detector
+proximity_thresh: 0.5 # min IoU before appearance is even considered
+appearance_thresh: 0.25 # min embedding similarity to accept a match

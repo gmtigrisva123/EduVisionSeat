@@ -1,0 +1,23 @@
+# Example override file. Load it with:
+#
+#     from src.config import Config
+#     cfg = Config.from_yaml("configs/example_experiment.yaml")
+#
+# Only the keys listed here change; everything else keeps the default from
+# src/config.py. Unknown keys are rejected rather than ignored, so a typo fails
+# immediately instead of quietly producing a differently configured run.
+
+detect:
+  weights: yolo11m.pt
+  conf: 0.3
+  imgsz: 1280
+  # The single most valuable A/B test on your own footage: flip end2end and
+  # compare recall on the back rows. `iou` only applies while this is false.
+  end2end: false
+  iou: 0.75
+  detect_phone: true
+
+track:
+  tracker_yaml: configs/botsort_reid.yaml
+  persist: true
+  max_people_per_frame: 40

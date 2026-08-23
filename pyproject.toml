@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eduvisionseat"
+version = "1.0.0"
+description = "Detection and posture analysis for classroom seating research"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+keywords = ["computer-vision", "pose-estimation", "object-detection", "education-research"]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+]
+
+# Keep in sync with requirements.txt; that file stays for `pip install -r`.
+dependencies = [
+    "ultralytics>=8.4.118",
+    "torch>=2.2.2",
+    "mediapipe>=0.10.21",
+    "opencv-python>=4.9",
+    "numpy>=1.26",
+    "PyYAML>=6.0",
+    "matplotlib>=3.8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6", "bandit>=1.7"]
+notebook = ["jupyter>=1.0"]
+
+# The code imports `src.detect`, `src.pose`, ... so `src` is a real package here
+# rather than the usual src-layout wrapper. List the packages explicitly so
+# setuptools does not reinterpret the directory.
+[tool.setuptools]
+packages = ["src", "src.detect", "src.pose", "src.hiem", "src.notebook"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q --strict-markers"
+markers = [
+    "slow: needs model weights or a network download (deselect with '-m \"not slow\"')",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py38"
+exclude = [
+    "venv",
+    "data",
+    "models",
+    # Notebooks follow their own conventions (top-level statements, display
+    # side effects) and are linted by hand rather than by CI.
+    "*.ipynb",
+]
+
+[tool.ruff.lint]
+# Formatting is delegated to `ruff format`; this set targets real defects:
+# pycodestyle errors, pyflakes, bugbear, and the flake8-simplify suggestions.
+select = ["E", "F", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# A linear exploration script rather than a module: it keeps the imports of the
+# original MediaPipe tutorial and runs at import time. Left as-is on purpose.
+"src/pose/pose_detection.py" = ["F401", "B007"]
